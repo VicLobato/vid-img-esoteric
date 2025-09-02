@@ -27,15 +27,18 @@ def processRow(args):
 
     videoWidth = frameShape[1]
 
-    for xStart in range(0, videoWidth-imgWidth, imgWidth):
-        frameArea = frame[yStart:yEnd, xStart:xStart+imgWidth].astype(np.int16)
+    for xStart in range(0, videoWidth, imgWidth):
+        xEnd = min(xStart+imgWidth, videoWidth)
+        frameArea = frame[yStart:yEnd, xStart:xEnd].astype(np.int32)
 
-        deltas = np.empty_like(imgs)
+        deltas = np.empty((numImgs, (yEnd-yStart), (xEnd-xStart), frameShape[2]), dtype=np.int32)
         for d in range(len(deltas)):
-            np.subtract(imgs[d], frameArea, out=deltas[d])
-            np.abs(deltas[d], out=deltas[d])
+            np.subtract(imgs[d, :(yEnd-yStart), :(xEnd-xStart)], frameArea, out=deltas[d])
+            np.square(deltas[d], out=deltas[d])
+            #np.abs(deltas[d], out=deltas[d])
 
-        frame[yStart:yEnd, xStart:xStart+imgWidth] = imgs[np.argmin(np.sum(deltas, axis=(1,2,3)))].astype(np.uint8)
+        minIdx = np.argmin(np.sum(deltas, axis=(1,2,3)))
+        frame[yStart:yEnd, xStart:xEnd] = imgs[minIdx, :(yEnd-yStart), :(xEnd-xStart)].astype(np.uint8)
 
     sharedFrameMem.close()
     sharedImgsMem.close()
@@ -82,8 +85,8 @@ def convertMulti(videoPathIn, videoPathOut, imgs):
         sharedFrame[:] = frame[:]
 
         tasks = []
-        for yStart in range(0, videoHeight-imgHeight, imgHeight):
-            yEnd = yStart + imgHeight
+        for yStart in range(0, videoHeight, imgHeight):
+            yEnd = min(yStart + imgHeight, videoHeight)
             tasks.append((yStart, yEnd, frame.shape, sharedFrameMem.name, sharedImgsMem.name, len(imgs), imgHeight, imgWidth))
 
         pool.map(processRow, tasks)
@@ -140,9 +143,9 @@ def convertSingle(videoPathIn, videoPathOut, imgs):
 
         for y in range(0, videoHeight-imgHeight, imgHeight):
             for x in range(0, videoWidth-imgWidth, imgWidth):
-                # Convert to int16 to avoid underflow
-                frameArea = frame[y:y+imgHeight, x:x+imgWidth].astype(np.int16)
-                deltas = np.array(imgs, dtype=np.int16)
+                # Convert to int32 to avoid underflow
+                frameArea = frame[y:y+imgHeight, x:x+imgWidth].astype(np.int32)
+                deltas = np.array(imgs, dtype=np.int32)
 
                 for d in range(len(deltas)):
                     np.subtract(deltas[d], frameArea, out=deltas[d])
