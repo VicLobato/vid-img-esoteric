@@ -1,5 +1,5 @@
 from process import convertSingle, convertMulti, imgLoad
 
 if __name__ == '__main__':
-	imgs = imgLoad('./sample-data/', (50, 50))
-	convertMulti('./sample-data/input.mp4', './sample-data/output.mp4', imgs)
+	imgs = imgLoad('./data/road-signs/', (50, 50))
+	convertMulti('./data/car.mp4', './data/car_out.mp4', imgs)
